@@ -4,6 +4,8 @@
 
 本项目基于 [@zarazhangrui](https://github.com/zarazhangrui) 的原项目 [tab-out](https://github.com/zarazhangrui/tab-out) 进行二创和个人功能增强，仅用于中文化与体验优化，不冒充原作者官方版本。原项目协议为 MIT，本仓库保留原作者署名与参考链接。
 
+当前仓库地址：[https://github.com/OHappypeggy/tab-out-cn-remix](https://github.com/OHappypeggy/tab-out-cn-remix)
+
 ---
 
 ## 这个版本做了什么
@@ -41,7 +43,7 @@
 ### 1. 克隆仓库
 
 ```bash
-git clone <你的仓库地址>
+git clone https://github.com/OHappypeggy/tab-out-cn-remix.git
 ```
 
 ### 2. 在 Chrome 中加载插件
