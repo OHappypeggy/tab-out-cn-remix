@@ -30,7 +30,6 @@ let bookmarkStandaloneParentId = null;
 let bookmarkDragState = null;
 let currentWallpaperMeta = null;
 let wallpaperControlsBusy = false;
-let wallpaperStatusTimer = null;
 const SEARCH_HISTORY_KEY = 'searchHistory';
 const MAX_SEARCH_HISTORY = 5;
 const CUSTOM_WALLPAPER_KEY = 'customWallpaperDataUrl';
@@ -790,39 +789,26 @@ function setWallpaperBackground(dataUrl = '') {
   }
 }
 
-function getWallpaperStatusLabel() {
-  if (!currentWallpaperMeta) return '当前壁纸：默认壁纸';
+function getWallpaperTriggerLabel(statusText = '') {
+  if (statusText) return statusText;
+  if (!currentWallpaperMeta) return '更换壁纸';
 
   const fileName = String(currentWallpaperMeta.name || '自定义壁纸').trim() || '自定义壁纸';
-  return `当前壁纸：${fileName}`;
+  return `更换壁纸（当前：${fileName}）`;
 }
 
 function renderWallpaperControls(statusText = '') {
-  const statusEl = document.getElementById('wallpaperStatus');
-  const uploadBtn = document.querySelector('[data-action="open-wallpaper-picker"]');
-  const resetBtn = document.getElementById('resetWallpaperButton');
+  const uploadBtn = document.getElementById('wallpaperTrigger');
   const input = document.getElementById('wallpaperInput');
 
-  if (statusEl) {
-    statusEl.textContent = statusText || getWallpaperStatusLabel();
+  if (uploadBtn) {
+    const label = getWallpaperTriggerLabel(statusText);
+    uploadBtn.disabled = wallpaperControlsBusy;
+    uploadBtn.title = label;
+    uploadBtn.setAttribute('aria-label', label);
   }
 
-  if (uploadBtn) uploadBtn.disabled = wallpaperControlsBusy;
-  if (resetBtn) resetBtn.disabled = wallpaperControlsBusy || !currentWallpaperMeta;
   if (input) input.disabled = wallpaperControlsBusy;
-}
-
-function showTemporaryWallpaperStatus(message, timeoutMs = 2200) {
-  if (wallpaperStatusTimer) {
-    window.clearTimeout(wallpaperStatusTimer);
-    wallpaperStatusTimer = null;
-  }
-
-  renderWallpaperControls(message);
-  wallpaperStatusTimer = window.setTimeout(() => {
-    wallpaperStatusTimer = null;
-    if (!wallpaperControlsBusy) renderWallpaperControls();
-  }, timeoutMs);
 }
 
 function setWallpaperBusy(isBusy, statusText = '') {
@@ -959,13 +945,6 @@ async function saveCustomWallpaper(file) {
 
   currentWallpaperMeta = meta;
   setWallpaperBackground(dataUrl);
-  renderWallpaperControls();
-}
-
-async function resetCustomWallpaper() {
-  await chrome.storage.local.remove([CUSTOM_WALLPAPER_KEY, CUSTOM_WALLPAPER_META_KEY]);
-  currentWallpaperMeta = null;
-  setWallpaperBackground('');
   renderWallpaperControls();
 }
 
@@ -2052,27 +2031,6 @@ document.addEventListener('click', async (e) => {
     return;
   }
 
-  if (action === 'reset-wallpaper') {
-    e.preventDefault();
-    if (wallpaperControlsBusy || !currentWallpaperMeta) return;
-
-    let errorMessage = '';
-
-    try {
-      setWallpaperBusy(true, '正在恢复默认壁纸...');
-      await resetCustomWallpaper();
-      showToast('已恢复默认壁纸');
-    } catch (err) {
-      console.error('[tab-out] Could not reset wallpaper:', err);
-      errorMessage = '恢复默认壁纸失败';
-      showToast('恢复默认壁纸失败');
-    } finally {
-      setWallpaperBusy(false);
-      if (errorMessage) showTemporaryWallpaperStatus(errorMessage);
-    }
-    return;
-  }
-
   if (action === 'rename-bookmark-node') {
     e.preventDefault();
     e.stopPropagation();
@@ -2393,19 +2351,15 @@ document.addEventListener('change', async (e) => {
 
   if (!file) return;
 
-  let errorMessage = '';
-
   try {
     setWallpaperBusy(true, '正在处理壁纸...');
     await saveCustomWallpaper(file);
     showToast('已更新首页壁纸');
   } catch (err) {
     console.error('[tab-out] Could not save wallpaper:', err);
-    errorMessage = getWallpaperErrorMessage(err);
-    showToast(errorMessage);
+    showToast(getWallpaperErrorMessage(err));
   } finally {
     setWallpaperBusy(false);
-    if (errorMessage) showTemporaryWallpaperStatus(errorMessage);
   }
 });
 

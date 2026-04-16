@@ -26,6 +26,26 @@
       <!-- "Friday, April 4, 2026" — written by getDateDisplay() in app.js -->
       <div class="date" id="dateDisplay"></div>
     </div>
+    <div class="header-right">
+      <button
+        type="button"
+        class="wallpaper-trigger"
+        id="wallpaperTrigger"
+        data-action="open-wallpaper-picker"
+        title="更换壁纸"
+        aria-label="更换壁纸"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.6" stroke="currentColor" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l3.659 3.659M3.75 19.5h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm6-10.125h.008v.008H9.75V9.375Z" />
+        </svg>
+      </button>
+      <input
+        type="file"
+        id="wallpaperInput"
+        accept="image/png,image/jpeg,image/webp"
+        hidden
+      >
+    </div>
   </header>
 
   <form class="search-form" id="searchForm" autocomplete="off">
@@ -38,27 +58,6 @@
     >
     <div class="search-history-dropdown" id="searchHistoryDropdown" style="display:none"></div>
   </form>
-
-  <section class="wallpaper-controls" id="wallpaperControls" aria-label="壁纸设置">
-    <div class="wallpaper-actions">
-      <button type="button" class="wallpaper-btn wallpaper-btn-primary" data-action="open-wallpaper-picker">
-        更换壁纸
-      </button>
-      <button type="button" class="wallpaper-btn" id="resetWallpaperButton" data-action="reset-wallpaper">
-        恢复默认
-      </button>
-      <input
-        type="file"
-        id="wallpaperInput"
-        accept="image/png,image/jpeg,image/webp"
-        hidden
-      >
-    </div>
-    <div class="wallpaper-meta">
-      <div class="wallpaper-status" id="wallpaperStatus">当前壁纸：默认壁纸</div>
-      <div class="wallpaper-hint">支持 JPG、PNG、WebP，图片会保存在浏览器本地。</div>
-    </div>
-  </section>
 
   <!-- ================================================================
        TAB OUT DUPES BANNER — appears when you have extra Tab Out tabs open
