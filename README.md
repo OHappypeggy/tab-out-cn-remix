@@ -2,7 +2,7 @@
 
 一个基于 Tab Out 的中文二创 Chrome 新标签页插件。
 
-本项目基于 [@zarazhangrui](https://github.com/zarazhangrui) 的原项目 [tab-out](https://github.com/zarazhangrui/tab-out) 进行二创和个人功能增强，仅用于中文化与体验优化，不冒充原作者官方版本。原项目协议为 MIT，本仓库保留原作者署名与参考链接。
+本项目基于 [@zarazhangrui](https://github.com/zarazhangrui) 的原项目 [tab-out](https://github.com/zarazhangrui/tab-out) 进行二创和个人功能增强，仅用于中文化与体验优化，原项目协议为 MIT。
 
 ---
 
@@ -10,11 +10,11 @@
 
 - 将首页核心文案改为中文，包括问候语、模块标题、提示语和按钮文案
 - 新标签页背景替换为自定义壁纸，并统一成更明显的毛玻璃视觉
-- 增加“我的书签”模块，支持展示 Chrome 书签栏和嵌套文件夹
+- 增加“我的书签”模块，支持展示Chrome书签栏和嵌套文件夹
 - 支持书签和文件夹折叠展开
 - 支持书签和文件夹重命名
 - 支持书签和文件夹拖拽换位置
-- 搜索框支持最近 5 条搜索历史下拉
+- 搜索框支持最近5条搜索历史下拉
 - 保留原版的标签页分组、重复标签检测、稍后处理、关闭动画和音效体验
 
 ---
@@ -61,7 +61,7 @@ extension/
 
 ## 适合谁用
 
-- 想把原版 Tab Out 改成中文界面的人
+- 想把原版Tab Out改成中文界面的人
 - 想在新标签页直接整理书签的人
 - 想要搜索历史下拉和更强书签编辑能力的人
 - 想在原版基础上做个人化视觉改造的人
@@ -72,7 +72,7 @@ extension/
 
 - 原项目作者：[@zarazhangrui](https://github.com/zarazhangrui)
 - 原项目地址：[https://github.com/zarazhangrui/tab-out](https://github.com/zarazhangrui/tab-out)
-- 本项目性质：个人中文二创增强版
+- 本项目性质：个人二创
 - 与原版关系：保留原版核心思路，在此基础上追加中文化、书签编辑、拖拽整理、搜索历史和界面定制
 
 如果你更喜欢原汁原味的版本，建议直接使用原仓库。
