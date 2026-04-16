@@ -30,14 +30,18 @@ let bookmarkStandaloneParentId = null;
 let bookmarkDragState = null;
 let currentWallpaperMeta = null;
 let wallpaperControlsBusy = false;
+let usageCompanionTimer = null;
 const SEARCH_HISTORY_KEY = 'searchHistory';
 const MAX_SEARCH_HISTORY = 5;
 const CUSTOM_WALLPAPER_KEY = 'customWallpaperDataUrl';
 const CUSTOM_WALLPAPER_META_KEY = 'customWallpaperMeta';
+const USAGE_TOTALS_KEY = 'browserUsageDailyMs';
+const USAGE_STATE_KEY = 'browserUsageTrackerState';
 const MAX_CUSTOM_WALLPAPER_FILE_BYTES = 15 * 1024 * 1024;
 const MAX_CUSTOM_WALLPAPER_STORAGE_CHARS = 4_500_000;
 const WALLPAPER_DIMENSION_STEPS = [2400, 2000, 1600, 1280];
 const WALLPAPER_QUALITY_STEPS = [0.9, 0.82, 0.74, 0.66];
+const USAGE_COMPANION_REFRESH_MS = 60 * 1000;
 
 /**
  * fetchOpenTabs()
@@ -643,6 +647,148 @@ function getDateDisplay() {
     month: 'long',
     day: 'numeric',
   });
+}
+
+function pad2(value) {
+  return String(value).padStart(2, '0');
+}
+
+function getLocalDayKey(timestamp = Date.now()) {
+  const date = new Date(timestamp);
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+}
+
+function getStartOfDay(timestamp = Date.now()) {
+  const date = new Date(timestamp);
+  date.setHours(0, 0, 0, 0);
+  return date.getTime();
+}
+
+function normalizeUsageTrackingState(raw) {
+  const state = raw && typeof raw === 'object' ? raw : {};
+
+  return {
+    hasFocusedWindow: Boolean(state.hasFocusedWindow),
+    idleState: state.idleState === 'idle' || state.idleState === 'locked' ? state.idleState : 'active',
+    activeSessionStartMs: Number.isFinite(state.activeSessionStartMs) ? state.activeSessionStartMs : null,
+    lastSyncedAt: Number.isFinite(state.lastSyncedAt) ? state.lastSyncedAt : 0,
+  };
+}
+
+function formatUsageDuration(durationMs) {
+  const totalMinutes = Math.max(0, Math.floor(durationMs / 60000));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  if (hours <= 0 && minutes <= 0) return '不到 1 分钟';
+  if (hours <= 0) return `${minutes} 分钟`;
+  if (minutes <= 0) return `${hours} 小时`;
+  return `${hours} 小时 ${minutes} 分钟`;
+}
+
+function getActiveTodayOverlap(startMs, nowMs = Date.now()) {
+  if (!Number.isFinite(startMs) || nowMs <= startMs) return 0;
+  return Math.max(0, nowMs - Math.max(startMs, getStartOfDay(nowMs)));
+}
+
+function getUsageCompanionMessage(usageMs, now = new Date()) {
+  const totalMinutes = Math.max(0, Math.floor(usageMs / 60000));
+  const hour = now.getHours();
+
+  if (totalMinutes < 5) {
+    return '新的一天刚开场，慢慢进入状态就很好。';
+  }
+
+  if (hour >= 11 && hour < 14 && totalMinutes >= 120) {
+    return '到午饭时间了，先去补充一点能量吧。';
+  }
+
+  if (hour >= 18 && hour < 21 && totalMinutes >= 300) {
+    return '忙到现在已经很不容易了，晚饭和眼睛都别忘了照顾。';
+  }
+
+  if (totalMinutes >= 600) {
+    return '今天已经和屏幕并肩作战 10 小时以上了，太拼了，也该休息一下啦。';
+  }
+
+  if (totalMinutes >= 480) {
+    return '今天已经努力了很久，站起来伸个懒腰，肩膀会感谢你的。';
+  }
+
+  if (totalMinutes >= 300) {
+    return '节奏很稳，喝口水，顺便让眼睛离开屏幕半分钟吧。';
+  }
+
+  if (hour < 12 && totalMinutes >= 60) {
+    return '上午状态在线，继续稳稳推进。';
+  }
+
+  if (hour >= 14 && hour < 18 && totalMinutes >= 90) {
+    return '下午也在稳定输出，记得眨眨眼，别把自己写成雕像。';
+  }
+
+  if (totalMinutes >= 30) {
+    return `今天已经努力了 ${formatUsageDuration(usageMs)}，继续加油，也别忘了照顾自己。`;
+  }
+
+  return '热身已经开始了，今天也一起把节奏走顺。';
+}
+
+async function getUsageCompanionSnapshot() {
+  try {
+    const data = await chrome.storage.local.get([USAGE_TOTALS_KEY, USAGE_STATE_KEY]);
+    const totals = data[USAGE_TOTALS_KEY] && typeof data[USAGE_TOTALS_KEY] === 'object'
+      ? data[USAGE_TOTALS_KEY]
+      : {};
+    const trackingState = normalizeUsageTrackingState(data[USAGE_STATE_KEY]);
+    const now = Date.now();
+    const todayKey = getLocalDayKey(now);
+    let usageMs = Number(totals[todayKey]) || 0;
+
+    if (
+      Number.isFinite(trackingState.activeSessionStartMs)
+      && trackingState.hasFocusedWindow
+      && trackingState.idleState === 'active'
+    ) {
+      usageMs += getActiveTodayOverlap(trackingState.activeSessionStartMs, now);
+    }
+
+    const hasStarted = usageMs > 0 || trackingState.lastSyncedAt > 0;
+
+    return { usageMs, hasStarted };
+  } catch {
+    return { usageMs: 0, hasStarted: false };
+  }
+}
+
+async function renderUsageCompanion() {
+  const root = document.getElementById('usageCompanion');
+  const timeEl = document.getElementById('usageCompanionTime');
+  const messageEl = document.getElementById('usageCompanionMessage');
+
+  if (!root || !timeEl || !messageEl) return;
+
+  const { usageMs, hasStarted } = await getUsageCompanionSnapshot();
+
+  if (!hasStarted) {
+    timeEl.textContent = '刚开始记录';
+    messageEl.textContent = '从这个版本开始，陪你记住今天和浏览器相处了多久。';
+    root.title = '从当前版本开始记录今天的活跃浏览时长。';
+    return;
+  }
+
+  const durationText = formatUsageDuration(usageMs);
+  timeEl.textContent = `已陪你 ${durationText}`;
+  messageEl.textContent = getUsageCompanionMessage(usageMs, new Date());
+  root.title = '统计的是今天 Chrome 窗口处于焦点中且用户保持活跃时的使用时长。';
+}
+
+function startUsageCompanionTimer() {
+  if (usageCompanionTimer) return;
+
+  usageCompanionTimer = window.setInterval(() => {
+    renderUsageCompanion();
+  }, USAGE_COMPANION_REFRESH_MS);
 }
 
 function escapeHtml(value) {
@@ -1841,6 +1987,7 @@ async function renderStaticDashboard() {
   const dateEl     = document.getElementById('dateDisplay');
   if (greetingEl) greetingEl.textContent = getGreeting();
   if (dateEl)     dateEl.textContent     = getDateDisplay();
+  await renderUsageCompanion();
 
   // --- Fetch bookmarks ---
   await fetchBookmarks();
@@ -2382,25 +2529,30 @@ document.addEventListener('submit', async (e) => {
 if (chrome.storage?.onChanged) {
   chrome.storage.onChanged.addListener((changes, areaName) => {
     if (areaName !== 'local') return;
-    if (!(CUSTOM_WALLPAPER_KEY in changes || CUSTOM_WALLPAPER_META_KEY in changes)) return;
 
-    if (CUSTOM_WALLPAPER_KEY in changes) {
-      const nextWallpaper = changes[CUSTOM_WALLPAPER_KEY]?.newValue;
+    if (CUSTOM_WALLPAPER_KEY in changes || CUSTOM_WALLPAPER_META_KEY in changes) {
+      if (CUSTOM_WALLPAPER_KEY in changes) {
+        const nextWallpaper = changes[CUSTOM_WALLPAPER_KEY]?.newValue;
 
-      if (isValidWallpaperDataUrl(nextWallpaper)) {
-        currentWallpaperMeta = CUSTOM_WALLPAPER_META_KEY in changes
-          ? changes[CUSTOM_WALLPAPER_META_KEY]?.newValue || { name: '自定义壁纸' }
-          : currentWallpaperMeta || { name: '自定义壁纸' };
-        setWallpaperBackground(nextWallpaper);
-      } else {
-        currentWallpaperMeta = null;
-        setWallpaperBackground('');
+        if (isValidWallpaperDataUrl(nextWallpaper)) {
+          currentWallpaperMeta = CUSTOM_WALLPAPER_META_KEY in changes
+            ? changes[CUSTOM_WALLPAPER_META_KEY]?.newValue || { name: '自定义壁纸' }
+            : currentWallpaperMeta || { name: '自定义壁纸' };
+          setWallpaperBackground(nextWallpaper);
+        } else {
+          currentWallpaperMeta = null;
+          setWallpaperBackground('');
+        }
+      } else if (CUSTOM_WALLPAPER_META_KEY in changes && currentWallpaperMeta) {
+        currentWallpaperMeta = changes[CUSTOM_WALLPAPER_META_KEY]?.newValue || currentWallpaperMeta;
       }
-    } else if (CUSTOM_WALLPAPER_META_KEY in changes && currentWallpaperMeta) {
-      currentWallpaperMeta = changes[CUSTOM_WALLPAPER_META_KEY]?.newValue || currentWallpaperMeta;
+
+      if (!wallpaperControlsBusy) renderWallpaperControls();
     }
 
-    if (!wallpaperControlsBusy) renderWallpaperControls();
+    if (USAGE_TOTALS_KEY in changes || USAGE_STATE_KEY in changes) {
+      renderUsageCompanion();
+    }
   });
 }
 
@@ -2423,6 +2575,7 @@ if (chrome.bookmarks?.onCreated) {
 async function initializeDashboard() {
   await applyStoredWallpaper();
   await renderDashboard();
+  startUsageCompanionTimer();
 }
 
 initializeDashboard();

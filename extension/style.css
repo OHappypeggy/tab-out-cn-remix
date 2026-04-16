@@ -1191,8 +1191,55 @@ footer {
 
 .header-right {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: flex-end;
+  gap: 12px;
+  min-width: 0;
+}
+
+.usage-companion {
+  min-width: 0;
+  max-width: 320px;
+  padding: 10px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.42);
+  box-shadow: 0 14px 34px rgba(26, 22, 19, 0.08);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.usage-companion-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.usage-companion-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(26, 22, 19, 0.52);
+  flex-shrink: 0;
+}
+
+.usage-companion-time {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1a1613;
+  white-space: nowrap;
+}
+
+.usage-companion-message {
+  color: rgba(26, 22, 19, 0.76);
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .wallpaper-trigger {
@@ -1679,6 +1726,25 @@ footer {
 }
 
 @media (max-width: 960px) {
+  header {
+    flex-wrap: wrap;
+    gap: 14px;
+    align-items: stretch;
+  }
+
+  .header-right {
+    justify-content: space-between;
+  }
+
+  .usage-companion {
+    max-width: none;
+    flex: 1;
+  }
+
+  .usage-companion-message {
+    white-space: normal;
+  }
+
   .dashboard-columns {
     flex-direction: column;
   }
