@@ -632,9 +632,13 @@ function timeAgo(dateStr) {
  */
 function getGreeting() {
   const hour = new Date().getHours();
-  if (hour < 12) return '早上好';
+  if (hour < 5) return '夜深了';
+  if (hour < 8) return '早上好';
+  if (hour < 11) return '上午好';
+  if (hour < 13) return '中午好';
   if (hour < 18) return '下午好';
-  return '晚上好';
+  if (hour < 22) return '晚上好';
+  return '夜深了';
 }
 
 /**
@@ -731,7 +735,7 @@ function getUsageCompanionMessage(usageMs, now = new Date()) {
     return `今天已经努力了 ${formatUsageDuration(usageMs)}，继续加油，也别忘了照顾自己。`;
   }
 
-  return '热身已经开始了，今天也一起把节奏走顺。';
+  return '今天也要一起加油！';
 }
 
 async function getUsageCompanionSnapshot() {
