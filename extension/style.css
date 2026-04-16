@@ -1163,7 +1163,10 @@ footer { animation: fadeUp 0.5s ease 0.65s both; }
    ================================================================ */
 
 body {
-  background: url('./壁纸.png') no-repeat center center fixed;
+  background-image: var(--page-wallpaper, url('./壁纸.png'));
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-attachment: fixed;
   background-size: cover;
 }
 
@@ -1189,6 +1192,85 @@ footer {
 .search-form {
   position: relative;
   margin-bottom: 18px;
+}
+
+.wallpaper-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+  padding: 14px 16px;
+  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.46);
+  background: rgba(255, 255, 255, 0.56);
+  box-shadow: 0 18px 42px rgba(26, 22, 19, 0.08);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.wallpaper-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.wallpaper-btn {
+  border: 1px solid rgba(26, 22, 19, 0.08);
+  border-radius: 999px;
+  padding: 9px 14px;
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--ink);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, color 0.18s ease;
+}
+
+.wallpaper-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(26, 22, 19, 0.08);
+}
+
+.wallpaper-btn:disabled {
+  opacity: 0.6;
+  cursor: wait;
+  transform: none;
+  box-shadow: none;
+}
+
+.wallpaper-btn-primary {
+  background: rgba(26, 22, 19, 0.9);
+  color: #ffffff;
+}
+
+.wallpaper-btn-primary:hover {
+  background: rgba(26, 22, 19, 0.96);
+}
+
+.wallpaper-meta {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: right;
+}
+
+.wallpaper-status {
+  color: #1a1613;
+  font-size: 13px;
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wallpaper-hint {
+  color: rgba(26, 22, 19, 0.56);
+  font-size: 12px;
 }
 
 .search-bar {
@@ -1637,6 +1719,16 @@ footer {
 @media (max-width: 960px) {
   .dashboard-columns {
     flex-direction: column;
+  }
+
+  .wallpaper-controls {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .wallpaper-meta {
+    width: 100%;
+    text-align: left;
   }
 
   .deferred-column {

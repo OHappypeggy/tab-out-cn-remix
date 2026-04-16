@@ -39,6 +39,27 @@
     <div class="search-history-dropdown" id="searchHistoryDropdown" style="display:none"></div>
   </form>
 
+  <section class="wallpaper-controls" id="wallpaperControls" aria-label="壁纸设置">
+    <div class="wallpaper-actions">
+      <button type="button" class="wallpaper-btn wallpaper-btn-primary" data-action="open-wallpaper-picker">
+        更换壁纸
+      </button>
+      <button type="button" class="wallpaper-btn" id="resetWallpaperButton" data-action="reset-wallpaper">
+        恢复默认
+      </button>
+      <input
+        type="file"
+        id="wallpaperInput"
+        accept="image/png,image/jpeg,image/webp"
+        hidden
+      >
+    </div>
+    <div class="wallpaper-meta">
+      <div class="wallpaper-status" id="wallpaperStatus">当前壁纸：默认壁纸</div>
+      <div class="wallpaper-hint">支持 JPG、PNG、WebP，图片会保存在浏览器本地。</div>
+    </div>
+  </section>
+
   <!-- ================================================================
        TAB OUT DUPES BANNER — appears when you have extra Tab Out tabs open
        Hidden by default; app.js shows it when dupeTabOutCount > 1

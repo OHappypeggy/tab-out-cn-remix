@@ -28,8 +28,17 @@ let openTabs = [];
 let bookmarks = [];
 let bookmarkStandaloneParentId = null;
 let bookmarkDragState = null;
+let currentWallpaperMeta = null;
+let wallpaperControlsBusy = false;
+let wallpaperStatusTimer = null;
 const SEARCH_HISTORY_KEY = 'searchHistory';
 const MAX_SEARCH_HISTORY = 5;
+const CUSTOM_WALLPAPER_KEY = 'customWallpaperDataUrl';
+const CUSTOM_WALLPAPER_META_KEY = 'customWallpaperMeta';
+const MAX_CUSTOM_WALLPAPER_FILE_BYTES = 15 * 1024 * 1024;
+const MAX_CUSTOM_WALLPAPER_STORAGE_CHARS = 4_500_000;
+const WALLPAPER_DIMENSION_STEPS = [2400, 2000, 1600, 1280];
+const WALLPAPER_QUALITY_STEPS = [0.9, 0.82, 0.74, 0.66];
 
 /**
  * fetchOpenTabs()
@@ -765,6 +774,199 @@ async function runSearch(query) {
   }
 
   window.location.assign(target);
+}
+
+function isValidWallpaperDataUrl(value) {
+  return typeof value === 'string' && value.startsWith('data:image/');
+}
+
+function setWallpaperBackground(dataUrl = '') {
+  if (!document.body) return;
+
+  if (isValidWallpaperDataUrl(dataUrl)) {
+    document.body.style.setProperty('--page-wallpaper', `url("${dataUrl}")`);
+  } else {
+    document.body.style.removeProperty('--page-wallpaper');
+  }
+}
+
+function getWallpaperStatusLabel() {
+  if (!currentWallpaperMeta) return '当前壁纸：默认壁纸';
+
+  const fileName = String(currentWallpaperMeta.name || '自定义壁纸').trim() || '自定义壁纸';
+  return `当前壁纸：${fileName}`;
+}
+
+function renderWallpaperControls(statusText = '') {
+  const statusEl = document.getElementById('wallpaperStatus');
+  const uploadBtn = document.querySelector('[data-action="open-wallpaper-picker"]');
+  const resetBtn = document.getElementById('resetWallpaperButton');
+  const input = document.getElementById('wallpaperInput');
+
+  if (statusEl) {
+    statusEl.textContent = statusText || getWallpaperStatusLabel();
+  }
+
+  if (uploadBtn) uploadBtn.disabled = wallpaperControlsBusy;
+  if (resetBtn) resetBtn.disabled = wallpaperControlsBusy || !currentWallpaperMeta;
+  if (input) input.disabled = wallpaperControlsBusy;
+}
+
+function showTemporaryWallpaperStatus(message, timeoutMs = 2200) {
+  if (wallpaperStatusTimer) {
+    window.clearTimeout(wallpaperStatusTimer);
+    wallpaperStatusTimer = null;
+  }
+
+  renderWallpaperControls(message);
+  wallpaperStatusTimer = window.setTimeout(() => {
+    wallpaperStatusTimer = null;
+    if (!wallpaperControlsBusy) renderWallpaperControls();
+  }, timeoutMs);
+}
+
+function setWallpaperBusy(isBusy, statusText = '') {
+  wallpaperControlsBusy = isBusy;
+  renderWallpaperControls(statusText);
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        resolve(reader.result);
+        return;
+      }
+      reject(new Error('invalid_wallpaper_data'));
+    };
+
+    reader.onerror = () => {
+      reject(reader.error || new Error('wallpaper_read_failed'));
+    };
+
+    reader.readAsDataURL(file);
+  });
+}
+
+function loadImageElement(src) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error('wallpaper_decode_failed'));
+    image.src = src;
+  });
+}
+
+function renderWallpaperCandidate(image, maxDimension, quality) {
+  const longestSide = Math.max(image.naturalWidth || 1, image.naturalHeight || 1);
+  const scale = Math.min(1, maxDimension / longestSide);
+  const width = Math.max(1, Math.round((image.naturalWidth || 1) * scale));
+  const height = Math.max(1, Math.round((image.naturalHeight || 1) * scale));
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d');
+
+  if (!context) throw new Error('wallpaper_canvas_failed');
+
+  canvas.width = width;
+  canvas.height = height;
+  context.drawImage(image, 0, 0, width, height);
+
+  return canvas.toDataURL('image/webp', quality);
+}
+
+async function createWallpaperDataUrl(file) {
+  if (!file?.type?.startsWith('image/')) {
+    throw new Error('wallpaper_invalid_type');
+  }
+
+  if (file.size > MAX_CUSTOM_WALLPAPER_FILE_BYTES) {
+    throw new Error('wallpaper_file_too_large');
+  }
+
+  const sourceDataUrl = await readFileAsDataUrl(file);
+  const image = await loadImageElement(sourceDataUrl);
+  let smallestCandidate = '';
+
+  for (const maxDimension of WALLPAPER_DIMENSION_STEPS) {
+    for (const quality of WALLPAPER_QUALITY_STEPS) {
+      const candidate = renderWallpaperCandidate(image, maxDimension, quality);
+
+      if (!smallestCandidate || candidate.length < smallestCandidate.length) {
+        smallestCandidate = candidate;
+      }
+
+      if (candidate.length <= MAX_CUSTOM_WALLPAPER_STORAGE_CHARS) {
+        return candidate;
+      }
+    }
+  }
+
+  if (smallestCandidate && smallestCandidate.length <= MAX_CUSTOM_WALLPAPER_STORAGE_CHARS) {
+    return smallestCandidate;
+  }
+
+  throw new Error('wallpaper_storage_too_large');
+}
+
+function getWallpaperErrorMessage(error) {
+  switch (error?.message) {
+    case 'wallpaper_invalid_type':
+      return '请选择 JPG、PNG 或 WebP 图片';
+    case 'wallpaper_file_too_large':
+      return '图片太大了，请选择 15MB 内的图片';
+    case 'wallpaper_storage_too_large':
+      return '图片仍然过大，请换一张更小的图';
+    default:
+      return '壁纸保存失败';
+  }
+}
+
+async function applyStoredWallpaper() {
+  try {
+    const {
+      [CUSTOM_WALLPAPER_KEY]: storedWallpaper = '',
+      [CUSTOM_WALLPAPER_META_KEY]: storedMeta = null,
+    } = await chrome.storage.local.get([CUSTOM_WALLPAPER_KEY, CUSTOM_WALLPAPER_META_KEY]);
+
+    if (isValidWallpaperDataUrl(storedWallpaper)) {
+      currentWallpaperMeta = storedMeta && typeof storedMeta === 'object' ? storedMeta : { name: '自定义壁纸' };
+      setWallpaperBackground(storedWallpaper);
+    } else {
+      currentWallpaperMeta = null;
+      setWallpaperBackground('');
+    }
+  } catch {
+    currentWallpaperMeta = null;
+    setWallpaperBackground('');
+  }
+
+  renderWallpaperControls();
+}
+
+async function saveCustomWallpaper(file) {
+  const dataUrl = await createWallpaperDataUrl(file);
+  const meta = {
+    name: file.name || '自定义壁纸',
+    updatedAt: Date.now(),
+  };
+
+  await chrome.storage.local.set({
+    [CUSTOM_WALLPAPER_KEY]: dataUrl,
+    [CUSTOM_WALLPAPER_META_KEY]: meta,
+  });
+
+  currentWallpaperMeta = meta;
+  setWallpaperBackground(dataUrl);
+  renderWallpaperControls();
+}
+
+async function resetCustomWallpaper() {
+  await chrome.storage.local.remove([CUSTOM_WALLPAPER_KEY, CUSTOM_WALLPAPER_META_KEY]);
+  currentWallpaperMeta = null;
+  setWallpaperBackground('');
+  renderWallpaperControls();
 }
 
 
@@ -1841,6 +2043,36 @@ document.addEventListener('click', async (e) => {
     return;
   }
 
+  if (action === 'open-wallpaper-picker') {
+    e.preventDefault();
+    const input = document.getElementById('wallpaperInput');
+    if (!input || wallpaperControlsBusy) return;
+    input.value = '';
+    input.click();
+    return;
+  }
+
+  if (action === 'reset-wallpaper') {
+    e.preventDefault();
+    if (wallpaperControlsBusy || !currentWallpaperMeta) return;
+
+    let errorMessage = '';
+
+    try {
+      setWallpaperBusy(true, '正在恢复默认壁纸...');
+      await resetCustomWallpaper();
+      showToast('已恢复默认壁纸');
+    } catch (err) {
+      console.error('[tab-out] Could not reset wallpaper:', err);
+      errorMessage = '恢复默认壁纸失败';
+      showToast('恢复默认壁纸失败');
+    } finally {
+      setWallpaperBusy(false);
+      if (errorMessage) showTemporaryWallpaperStatus(errorMessage);
+    }
+    return;
+  }
+
   if (action === 'rename-bookmark-node') {
     e.preventDefault();
     e.stopPropagation();
@@ -2153,6 +2385,30 @@ document.addEventListener('input', async (e) => {
   }
 });
 
+document.addEventListener('change', async (e) => {
+  if (e.target.id !== 'wallpaperInput') return;
+
+  const file = e.target.files?.[0];
+  e.target.value = '';
+
+  if (!file) return;
+
+  let errorMessage = '';
+
+  try {
+    setWallpaperBusy(true, '正在处理壁纸...');
+    await saveCustomWallpaper(file);
+    showToast('已更新首页壁纸');
+  } catch (err) {
+    console.error('[tab-out] Could not save wallpaper:', err);
+    errorMessage = getWallpaperErrorMessage(err);
+    showToast(errorMessage);
+  } finally {
+    setWallpaperBusy(false);
+    if (errorMessage) showTemporaryWallpaperStatus(errorMessage);
+  }
+});
+
 document.addEventListener('focusin', async (e) => {
   if (e.target.id !== 'searchInput') return;
   await showSearchHistory(e.target.value || '');
@@ -2168,6 +2424,31 @@ document.addEventListener('submit', async (e) => {
   setSearchHistoryVisibility(false);
   await runSearch(query);
 });
+
+if (chrome.storage?.onChanged) {
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName !== 'local') return;
+    if (!(CUSTOM_WALLPAPER_KEY in changes || CUSTOM_WALLPAPER_META_KEY in changes)) return;
+
+    if (CUSTOM_WALLPAPER_KEY in changes) {
+      const nextWallpaper = changes[CUSTOM_WALLPAPER_KEY]?.newValue;
+
+      if (isValidWallpaperDataUrl(nextWallpaper)) {
+        currentWallpaperMeta = CUSTOM_WALLPAPER_META_KEY in changes
+          ? changes[CUSTOM_WALLPAPER_META_KEY]?.newValue || { name: '自定义壁纸' }
+          : currentWallpaperMeta || { name: '自定义壁纸' };
+        setWallpaperBackground(nextWallpaper);
+      } else {
+        currentWallpaperMeta = null;
+        setWallpaperBackground('');
+      }
+    } else if (CUSTOM_WALLPAPER_META_KEY in changes && currentWallpaperMeta) {
+      currentWallpaperMeta = changes[CUSTOM_WALLPAPER_META_KEY]?.newValue || currentWallpaperMeta;
+    }
+
+    if (!wallpaperControlsBusy) renderWallpaperControls();
+  });
+}
 
 if (chrome.bookmarks?.onCreated) {
   const rerenderBookmarks = async () => {
@@ -2185,4 +2466,9 @@ if (chrome.bookmarks?.onCreated) {
 /* ----------------------------------------------------------------
    INITIALIZE
    ---------------------------------------------------------------- */
-renderDashboard();
+async function initializeDashboard() {
+  await applyStoredWallpaper();
+  await renderDashboard();
+}
+
+initializeDashboard();

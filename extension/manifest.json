@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Tab Out 中文增强版",
-  "version": "1.1.0",
-  "description": "Tab Out 的中文二创增强版。新标签页会按站点整理当前打开的页面，并支持书签展示、重命名和拖拽整理。",
+  "version": "1.2.0",
+  "description": "Tab Out 的中文二创增强版。新标签页会按站点整理当前打开的页面，并支持书签整理、自定义壁纸和搜索历史。",
   "permissions": ["tabs", "activeTab", "storage", "bookmarks"],
   "chrome_url_overrides": { "newtab": "index.html" },
   "background": { "service_worker": "background.js" },
