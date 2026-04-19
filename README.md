@@ -2,7 +2,7 @@
 
 一个基于Tab Out的中文二创Chrome新标签页插件。
 
-本项目基于 [@zarazhangrui](https://github.com/zarazhangrui) 的原项目 [tab-out](https://github.com/zarazhangrui/tab-out) 进行二创和个人功能增强，仅用于中文化与体验优化，不冒充原作者官方版本。原项目协议为 MIT，本仓库保留原作者署名与参考链接。
+本项目基于 [@zarazhangrui](https://github.com/zarazhangrui) 的原项目 [tab-out](https://github.com/zarazhangrui/tab-out) 进行二创和个人功能增强，仅用于中文化与体验优化。原项目协议为 MIT，本仓库保留原作者署名与参考链接。
 
 当前仓库地址：[https://github.com/OHappypeggy/tab-out-cn-remix](https://github.com/OHappypeggy/tab-out-cn-remix)
 
